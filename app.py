@@ -86,8 +86,7 @@ async def generate_download(file: UploadFile = File(...)):
 @app.post("/generate-open/")
 async def generate_open(file: UploadFile = File(...)):
     path = build_drawio(await file.read())
-    # IMPORTANT: replace with your server’s LAN IP or hostname
-    server_url = "http://192.168.1.10:8000/latest.drawio"
+    server_url = "https://192.168.1.10:8000/latest.drawio"
     return RedirectResponse(url=f"https://app.diagrams.net/?url={server_url}")
 
 @app.get("/latest.drawio")
