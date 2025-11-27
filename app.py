@@ -1,11 +1,13 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
-import tempfile, os, csv, yaml, base64, zlib
+import os, csv, yaml, base64, zlib
 from xml.etree.ElementTree import Element, tostring
 from xml.dom import minidom
 from diagram_utils import generate_diagram
 
 app = FastAPI()
+
+LATEST_FILE = "latest.drawio"  # stable filename served at /latest.drawio
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
@@ -17,31 +19,28 @@ async def home():
     </head>
     <body>
         <h1>Upload CSV to Generate Draw.io</h1>
-        <form action="/generate-download/" enctype="multipart/form-data" method="post">
+        <form enctype="multipart/form-data" method="post">
             <input name="file" type="file" accept=".csv">
-            <input type="submit" value="Generate & Download">
-        </form>
-        <br>
-        <form action="/generate-open/" enctype="multipart/form-data" method="post">
-            <input name="file" type="file" accept=".csv">
-            <input type="submit" value="Generate & Open in diagrams.net">
+            <br><br>
+            <button formaction="/generate-download/" type="submit">Generate & Download</button>
+            <button formaction="/generate-open/" type="submit">Generate & Open in diagrams.net</button>
         </form>
     </body>
     </html>
     """
 
-def build_drawio(file_bytes: bytes, config_path="config.yaml"):
-    # Save uploaded CSV to temp file
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp_csv:
-        tmp_csv.write(file_bytes)
-        tmp_csv_path = tmp_csv.name
+def build_drawio(file_bytes: bytes, config_path="config.yaml", output_path=LATEST_FILE):
+    # Save uploaded CSV temporarily
+    tmp_csv = "tmp.csv"
+    with open(tmp_csv, "wb") as f:
+        f.write(file_bytes)
 
     # Load config.yaml
     with open(config_path) as f:
         config = yaml.safe_load(f)
 
     # Parse CSV
-    with open(tmp_csv_path) as f:
+    with open(tmp_csv) as f:
         reader = csv.DictReader(f)
         data = list(reader)
 
@@ -72,13 +71,12 @@ def build_drawio(file_bytes: bytes, config_path="config.yaml"):
     final_xml = tostring(drawio_root, encoding="unicode")
     pretty_xml = minidom.parseString(final_xml).toprettyxml(indent="  ")
 
-    # Save to temp .drawio file
-    tmp_drawio = tempfile.NamedTemporaryFile(delete=False, suffix=".drawio")
-    with open(tmp_drawio.name, "w", encoding="utf-8") as f:
+    # Save to stable file
+    with open(output_path, "w", encoding="utf-8") as f:
         f.write(pretty_xml)
 
-    os.remove(tmp_csv_path)
-    return tmp_drawio.name
+    os.remove(tmp_csv)
+    return output_path
 
 @app.post("/generate-download/")
 async def generate_download(file: UploadFile = File(...)):
@@ -88,13 +86,11 @@ async def generate_download(file: UploadFile = File(...)):
 @app.post("/generate-open/")
 async def generate_open(file: UploadFile = File(...)):
     path = build_drawio(await file.read())
-    # Serve the file at /files/<filename>
-    filename = os.path.basename(path)
-    return RedirectResponse(
-        url=f"https://app.diagrams.net/?url=http://127.0.0.1:8000/files/{filename}"
-    )
+    # Redirect to diagrams.net with public URL to /latest.drawio
+    # Replace 192.168.1.10 with your server’s IP or hostname
+    server_url = "http://192.168.1.10:8000/latest.drawio"
+    return RedirectResponse(url=f"https://app.diagrams.net/?url={server_url}")
 
-@app.get("/files/{filename}")
-async def serve_file(filename: str):
-    filepath = os.path.join(tempfile.gettempdir(), filename)
-    return FileResponse(filepath, filename=filename)
+@app.get("/latest.drawio")
+async def serve_latest():
+    return FileResponse(LATEST_FILE, filename="output.drawio")
