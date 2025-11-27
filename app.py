@@ -88,7 +88,7 @@ async def generate_download(file: UploadFile = File(...)):
 async def generate_open(file: UploadFile = File(...)):
     path = build_drawio(await file.read())
     server_url = "https://192.168.1.10:8000/latest.drawio"
-    return RedirectResponse(url=f"https://app.diagrams.net/?url={server_url}")
+    return {"open_in_desktop": server_url}
 
 @app.get("/latest.drawio")
 async def serve_latest():
