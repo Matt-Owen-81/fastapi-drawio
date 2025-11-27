@@ -1,11 +1,29 @@
 from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 import tempfile, os, csv, yaml, base64, zlib
 from xml.etree.ElementTree import Element, tostring
 from xml.dom import minidom
 from diagram_utils import generate_diagram
 
 app = FastAPI()
+
+@app.get("/", response_class=HTMLResponse)
+async def home():
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>CSV → Draw.io Generator</title>
+    </head>
+    <body>
+        <h1>Upload CSV to Generate Draw.io</h1>
+        <form action="/upload-csv/" enctype="multipart/form-data" method="post">
+            <input name="file" type="file" accept=".csv">
+            <input type="submit" value="Generate">
+        </form>
+    </body>
+    </html>
+    """
 
 @app.post("/upload-csv/")
 async def upload_csv(file: UploadFile = File(...)):
@@ -14,7 +32,7 @@ async def upload_csv(file: UploadFile = File(...)):
         tmp_csv.write(await file.read())
         tmp_csv_path = tmp_csv.name
 
-    # Load config.yaml (kept in project root)
+    # Load config.yaml
     with open("config.yaml") as f:
         config = yaml.safe_load(f)
 
@@ -60,4 +78,3 @@ async def upload_csv(file: UploadFile = File(...)):
 
     # Return file for download
     return FileResponse(tmp_drawio.name, filename="output.drawio")
-    
