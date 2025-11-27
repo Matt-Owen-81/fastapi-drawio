@@ -1,0 +1,40 @@
+page:
+  width: 1200
+  height: 800
+  background: "#ffffff"
+  grid: 1
+  gridSize: 10
+  guides: 1
+  tooltips: 1
+  connect: 1
+  arrows: 1
+  fold: 1
+  pageScale: 1
+  pageWidth: 1200
+  pageHeight: 800
+
+shape:
+  header:
+    style: "rounded=1;fillColor=#dae8fc"
+    width: 140
+    height: 40
+  subheader:
+    style: "rounded=1;fillColor=#dae8fc"
+    width: 120
+    height: 40
+  item:
+    style: "rounded=1"
+    width: 120
+    height: 40
+
+layout:
+  header_x: 40
+  header_y: 40
+  subheader_indent_x: 40
+  subheader_gap_y: 40
+  item_gap_x: 40
+  item_gap_y: 40
+  subheader_spacing_y: 80
+  item_spacing_x: 160
+  item_to_subheader_gap_y: 40
+item_wrap_limit: 4
