@@ -106,3 +106,4 @@ async def serve_latest():
             "Access-Control-Allow-Headers": "Content-Type",
         }
     )
+
