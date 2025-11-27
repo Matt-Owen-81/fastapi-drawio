@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 import os, csv, yaml, base64, zlib
 from xml.etree.ElementTree import Element, tostring
 from xml.dom import minidom
@@ -7,7 +7,7 @@ from diagram_utils import generate_diagram
 
 app = FastAPI()
 
-LATEST_FILE = "latest.drawio"  # stable filename served at /latest.drawio
+LATEST_FILE = "latest.drawio"
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
@@ -30,28 +30,23 @@ async def home():
     """
 
 def build_drawio(file_bytes: bytes, config_path="config.yaml", output_path=LATEST_FILE):
-    # Save uploaded CSV temporarily
     tmp_csv = "tmp.csv"
     with open(tmp_csv, "wb") as f:
         f.write(file_bytes)
 
-    # Load config.yaml
     with open(config_path) as f:
         config = yaml.safe_load(f)
 
-    # Parse CSV
     with open(tmp_csv) as f:
         reader = csv.DictReader(f)
         data = list(reader)
 
-    # Group data by Header → Sub-Header
     grouped = {}
     for row in data:
         h = row["Header"]
         s = row["Sub-Header"]
         grouped.setdefault(h, {}).setdefault(s, []).append(row)
 
-    # Build drawio XML
     drawio_root = Element("mxfile", {
         "host": "app.diagrams.net",
         "modified": "2025-11-27T22:00:00Z",
@@ -71,7 +66,6 @@ def build_drawio(file_bytes: bytes, config_path="config.yaml", output_path=LATES
     final_xml = tostring(drawio_root, encoding="unicode")
     pretty_xml = minidom.parseString(final_xml).toprettyxml(indent="  ")
 
-    # Save to stable file
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(pretty_xml)
 
@@ -86,9 +80,16 @@ async def generate_download(file: UploadFile = File(...)):
 @app.post("/generate-open/")
 async def generate_open(file: UploadFile = File(...)):
     path = build_drawio(await file.read())
+    # IMPORTANT: use HTTPS and your LAN IP
     server_url = "https://192.168.1.10:8000/latest.drawio"
     return RedirectResponse(url=f"https://app.diagrams.net/?url={server_url}")
 
 @app.get("/latest.drawio")
 async def serve_latest():
-    return FileResponse(LATEST_FILE, filename="output.drawio")
+    with open(LATEST_FILE, "r", encoding="utf-8") as f:
+        content = f.read()
+    return Response(
+        content,
+        media_type="application/xml",
+        headers={"Access-Control-Allow-Origin": "*"}
+    )
