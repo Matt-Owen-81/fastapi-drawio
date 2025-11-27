@@ -1,11 +1,20 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
+from fastapi.middleware.cors import CORSMiddleware
 import os, csv, yaml, base64, zlib
 from xml.etree.ElementTree import Element, tostring
 from xml.dom import minidom
 from diagram_utils import generate_diagram
 
 app = FastAPI()
+
+# Enable CORS globally (diagrams.net makes preflight requests)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 LATEST_FILE = "latest.drawio"
 
@@ -90,6 +99,10 @@ async def serve_latest():
         content = f.read()
     return Response(
         content,
-        media_type="application/xml",
-        headers={"Access-Control-Allow-Origin": "*"}
+        media_type="text/xml",
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+        }
     )
