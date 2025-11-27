@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 import tempfile, os, csv, yaml, base64, zlib
 from xml.etree.ElementTree import Element, tostring
 from xml.dom import minidom
@@ -17,23 +17,27 @@ async def home():
     </head>
     <body>
         <h1>Upload CSV to Generate Draw.io</h1>
-        <form action="/upload-csv/" enctype="multipart/form-data" method="post">
+        <form action="/generate-download/" enctype="multipart/form-data" method="post">
             <input name="file" type="file" accept=".csv">
-            <input type="submit" value="Generate">
+            <input type="submit" value="Generate & Download">
+        </form>
+        <br>
+        <form action="/generate-open/" enctype="multipart/form-data" method="post">
+            <input name="file" type="file" accept=".csv">
+            <input type="submit" value="Generate & Open in diagrams.net">
         </form>
     </body>
     </html>
     """
 
-@app.post("/upload-csv/")
-async def upload_csv(file: UploadFile = File(...)):
+def build_drawio(file_bytes: bytes, config_path="config.yaml"):
     # Save uploaded CSV to temp file
     with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp_csv:
-        tmp_csv.write(await file.read())
+        tmp_csv.write(file_bytes)
         tmp_csv_path = tmp_csv.name
 
     # Load config.yaml
-    with open("config.yaml") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
 
     # Parse CSV
@@ -73,8 +77,24 @@ async def upload_csv(file: UploadFile = File(...)):
     with open(tmp_drawio.name, "w", encoding="utf-8") as f:
         f.write(pretty_xml)
 
-    # Clean up CSV temp file
     os.remove(tmp_csv_path)
+    return tmp_drawio.name
 
-    # Return file for download
-    return FileResponse(tmp_drawio.name, filename="output.drawio")
+@app.post("/generate-download/")
+async def generate_download(file: UploadFile = File(...)):
+    path = build_drawio(await file.read())
+    return FileResponse(path, filename="output.drawio")
+
+@app.post("/generate-open/")
+async def generate_open(file: UploadFile = File(...)):
+    path = build_drawio(await file.read())
+    # Serve the file at /files/<filename>
+    filename = os.path.basename(path)
+    return RedirectResponse(
+        url=f"https://app.diagrams.net/?url=http://127.0.0.1:8000/files/{filename}"
+    )
+
+@app.get("/files/{filename}")
+async def serve_file(filename: str):
+    filepath = os.path.join(tempfile.gettempdir(), filename)
+    return FileResponse(filepath, filename=filename)
