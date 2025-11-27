@@ -8,7 +8,7 @@ from diagram_utils import generate_diagram
 
 app = FastAPI()
 
-# Enable CORS globally (diagrams.net makes preflight requests)
+# Enable CORS globally
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,9 +23,7 @@ async def home():
     return """
     <!DOCTYPE html>
     <html>
-    <head>
-        <title>CSV → Draw.io Generator</title>
-    </head>
+    <head><title>CSV → Draw.io Generator</title></head>
     <body>
         <h1>Upload CSV to Generate Draw.io</h1>
         <form enctype="multipart/form-data" method="post">
@@ -89,7 +87,6 @@ async def generate_download(file: UploadFile = File(...)):
 @app.post("/generate-open/")
 async def generate_open(file: UploadFile = File(...)):
     path = build_drawio(await file.read())
-    # IMPORTANT: use HTTPS and your LAN IP
     server_url = "https://192.168.1.10:8000/latest.drawio"
     return RedirectResponse(url=f"https://app.diagrams.net/?url={server_url}")
 
@@ -99,11 +96,10 @@ async def serve_latest():
         content = f.read()
     return Response(
         content,
-        media_type="text/xml",
+        media_type="application/xml",
         headers={
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type",
         }
     )
-
