@@ -22,8 +22,7 @@ async def home():
         <form enctype="multipart/form-data" method="post">
             <input name="file" type="file" accept=".csv">
             <br><br>
-            <button formaction="/generate-download/" type="submit">Generate & Download</button>
-            <button formaction="/generate-open/" type="submit">Generate & Open in diagrams.net</button>
+            <button formaction="/generate/" type="submit">Generate Diagram</button>
         </form>
     </body>
     </html>
@@ -72,18 +71,8 @@ def build_drawio(file_bytes: bytes, config_path="config.yaml", output_path=LATES
     os.remove(tmp_csv)
     return output_path
 
-@app.post("/generate-download/")
-async def generate_download(file: UploadFile = File(...)):
+@app.post("/generate/")
+async def generate(file: UploadFile = File(...)):
     path = build_drawio(await file.read())
-    return FileResponse(path, filename="output.drawio")
-
-@app.post("/generate-open/")
-async def generate_open(file: UploadFile = File(...)):
-    path = build_drawio(await file.read())
-    # Return the file directly with XML media type
-    # Browser will download and, if .drawio is associated, launch desktop app
-    return FileResponse(
-        path,
-        filename="output.drawio",
-        media_type="application/xml"
-    )
+    # Return the file directly — browser downloads, desktop app opens if associated
+    return FileResponse(path, filename="output.drawio", media_type="application/xml")
