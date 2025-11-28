@@ -1,20 +1,11 @@
 from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
 import os, csv, yaml, base64, zlib
 from xml.etree.ElementTree import Element, tostring
 from xml.dom import minidom
 from diagram_utils import generate_diagram
 
 app = FastAPI()
-
-# Enable CORS globally
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 LATEST_FILE = "latest.drawio"
 
@@ -23,7 +14,9 @@ async def home():
     return """
     <!DOCTYPE html>
     <html>
-    <head><title>CSV → Draw.io Generator</title></head>
+    <head>
+        <title>CSV → Draw.io Generator</title>
+    </head>
     <body>
         <h1>Upload CSV to Generate Draw.io</h1>
         <form enctype="multipart/form-data" method="post">
@@ -56,7 +49,7 @@ def build_drawio(file_bytes: bytes, config_path="config.yaml", output_path=LATES
 
     drawio_root = Element("mxfile", {
         "host": "app.diagrams.net",
-        "modified": "2025-11-27T22:00:00Z",
+        "modified": "2025-11-28T09:00:00Z",
         "agent": "fastapi",
         "version": "20.6.3",
         "type": "device"
@@ -87,22 +80,10 @@ async def generate_download(file: UploadFile = File(...)):
 @app.post("/generate-open/")
 async def generate_open(file: UploadFile = File(...)):
     path = build_drawio(await file.read())
+    # Return the file directly with XML media type
+    # Browser will download and, if .drawio is associated, launch desktop app
     return FileResponse(
         path,
         filename="output.drawio",
         media_type="application/xml"
-    )
-
-@app.get("/latest.drawio")
-async def serve_latest():
-    with open(LATEST_FILE, "r", encoding="utf-8") as f:
-        content = f.read()
-    return Response(
-        content,
-        media_type="application/xml",
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-        }
     )
